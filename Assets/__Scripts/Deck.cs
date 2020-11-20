@@ -246,7 +246,7 @@ public class Deck : MonoBehaviour {
 			tSR.sortingOrder = 2;
 			tGO.name = "back";
 			card.back = tGO;
-			card.faceUp = false;
+			card.faceUp = true;
 			
 			cards.Add (card);
 		} // for all the Cardnames	
