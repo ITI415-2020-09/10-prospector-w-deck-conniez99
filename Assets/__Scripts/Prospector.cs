@@ -53,54 +53,165 @@ public class Prospector : MonoBehaviour
 		drawPile = ConvertListCardsToListCardProspectors(deck.cards);
 
 		LayoutGame();
+	}
 
-		List<CardProspector> ConvertListCardsToListCardProspectors(List<Card> lCD)
+	List<CardProspector> ConvertListCardsToListCardProspectors(List<Card> lCD)
+	{
+		List<CardProspector> lCP = new List<CardProspector>();
+		CardProspector tCP;
+		foreach (Card tCD in lCD)
 		{
-			List<CardProspector> lCP = new List<CardProspector>();
-			CardProspector tCP;
-			foreach (Card tCD in lCD)
-			{
-				tCP = tCD as CardProspector; // a
-				lCP.Add(tCP);
-			}
-			return (lCP);
+			tCP = tCD as CardProspector; // a
+			lCP.Add(tCP);
+		}
+		return (lCP);
+	}
+
+	CardProspector Draw()
+	{
+		CardProspector cd = drawPile[0];
+		drawPile.RemoveAt(0);
+		return (cd);
+	}
+
+	void LayoutGame()
+	{
+		if (layoutAnchor == null)
+		{
+			GameObject tGO = new GameObject("_LayoutAnchor");
+			layoutAnchor = tGO.transform;
+			layoutAnchor.transform.position = layoutCenter;
 		}
 
-		CardProspector Draw()
+		CardProspector cp;
+		//Follow the layout
+		foreach (SlotDef tSD in layout.slotDefs)
 		{
-			CardProspector cd = drawPile[0];
-			drawPile.RemoveAt(0);
-			return (cd);
+			cp = Draw();
+			cp.faceUp = tSD.faceUp;
+			cp.transform.parent = layoutAnchor;
+			cp.transform.localPosition = new Vector3(
+				 layout.multiplier.x * tSD.x,
+				 layout.multiplier.y * tSD.y,
+				-tSD.layerID);
+			cp.layoutID = tSD.id;
+			cp.slotDef = tSD;
+			cp.state = eCardState.tableau;
+			cp.SetSortingLayerName(tSD.layerName);
+
+			tableau.Add(cp);
 		}
 
-		void LayoutGame()
+		// Set up the initial target card
+		MoveToTarget(Draw());
+
+		// Set up the Draw pile
+		UpdateDrawPile();
+	}
+
+	// Moves the current target to the discardPile
+	void MoveToDiscard(CardProspector cd)
+	{
+		// Set the state of the card to discard
+		cd.state = eCardState.discard;
+		discardPile.Add(cd); // Add it to the discardPile List<>
+		cd.transform.parent = layoutAnchor; // Update its transform parent
+
+		// Position this card on the discardPile
+		cd.transform.localPosition = new Vector3(
+			layout.multiplier.x * layout.discardPile.x,
+			layout.multiplier.y * layout.discardPile.y,
+			-layout.discardPile.layerID + 0.5f);
+		cd.faceUp = true;
+		// Place it on top of the pile for depth sorting
+		cd.SetSortingLayerName(layout.discardPile.layerName);
+		cd.SetSortOrder(-100 + discardPile.Count);
+	}
+
+	// Make cd the new target card
+	void MoveToTarget(CardProspector cd)
+	{
+		if (target != null) MoveToDiscard(target);
+		target = cd; // cd is the new target
+		cd.state = eCardState.target;
+		cd.transform.parent = layoutAnchor;
+		// Move to the target position
+		cd.transform.localPosition = new Vector3(
+			layout.multiplier.x * layout.discardPile.x,
+			layout.multiplier.y * layout.discardPile.y,
+			-layout.discardPile.layerID);
+		cd.faceUp = true; // Make it face-up
+						  // Set the depth sorting
+		cd.SetSortingLayerName(layout.discardPile.layerName);
+		cd.SetSortOrder(0);
+	}
+
+	void UpdateDrawPile()
+	{
+		CardProspector cd;
+		for (int i = 0; i < drawPile.Count; i++)
 		{
-			if (layoutAnchor == null)
-			{
-				GameObject tGO = new GameObject("_LayoutAnchor");
-				layoutAnchor = tGO.transform;
-				layoutAnchor.transform.position = layoutCenter;
-			}
-
-			CardProspector cp;
-			//Follow the layout
-			foreach (SlotDef tSD in layout.slotDefs)
-			{
-				cp = Draw();
-				cp.faceUp = tSD.faceUp;
-				cp.transform.parent = layoutAnchor;
-				cp.transform.localPosition = new Vector3(
-					 layout.multiplier.x * tSD.x,
-					 layout.multiplier.y * tSD.y,
-					-tSD.layerID);
-				cp.layoutID = tSD.id;
-				cp.slotDef = tSD;
-				cp.state = eCardState.tableau;
-				cp.SetSortingLayerName(tSD.layerName);
-
-				tableau.Add(cp);
-
-			}
+			cd = drawPile[i];
+			cd.transform.parent = layoutAnchor;
+			Vector2 dpStagger = layout.drawPile.stagger;
+			cd.transform.localPosition = new Vector3(
+				layout.multiplier.x * (layout.drawPile.x + i * dpStagger.x),
+				layout.multiplier.y * (layout.drawPile.y + i * dpStagger.y),
+				-layout.drawPile.layerID + 0.1f * i);
+			cd.faceUp = false; // Make them all face-down
+			cd.state = eCardState.drawpile;
+			// Set depth sorting
+			cd.SetSortingLayerName(layout.drawPile.layerName);
+			cd.SetSortOrder(-10 * i);
 		}
+	}
+
+	public void CardClicked(CardProspector cd)
+	{
+		switch (cd.state)
+		{
+			case eCardState.target:
+				// Clicking the target card does nothing
+				break;
+			case eCardState.drawpile:
+				MoveToDiscard(target);
+				MoveToTarget(Draw());
+				UpdateDrawPile();
+				break;
+			case eCardState.tableau:
+				bool validMatch = true;
+				if (!cd.faceUp)
+				{
+					// If the card is face-down, it's not valid
+					validMatch = false;
+				}
+				if (!AdjacentRank(cd, target))
+				{
+					// If it's not an adjacent rank, it's not valid
+					validMatch = false;
+				}
+				if (!validMatch) return;
+				// If we got here, then: Yay! It's a valid card.
+				tableau.Remove(cd); // Remove it from the tableau List
+				MoveToTarget(cd); // Make it the target card
+				break;
+		}
+	}
+
+	public bool AdjacentRank(CardProspector c0, CardProspector c1)
+	{
+		// If either card is face-down, it's not adjacent.
+		if (!c0.faceUp || !c1.faceUp) return (false);
+
+		// If they are 1 apart, they are adjacent
+		if (Mathf.Abs(c0.rank - c1.rank) == 1)
+		{
+			return (true);
+		}
+		// If one is Ace and the other King, they are adjacent
+		if (c0.rank == 1 && c1.rank == 13) return (true);
+		if (c0.rank == 13 && c1.rank == 1) return (true);
+		// Otherwise, return false
+		return (false);
 	}
 }
