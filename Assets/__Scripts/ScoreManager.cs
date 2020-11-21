@@ -23,6 +23,7 @@ public class ScoreManager : MonoBehaviour
     public int chain = 0;
     public int scoreRun = 0;
     public int score = 0;
+    public int goldChain = 0;
 
     void Awake()
     {
@@ -69,6 +70,11 @@ public class ScoreManager : MonoBehaviour
                 break;
             case eScoreEvent.mine: // Remove a mine card
                 chain++; // increase the score chain
+                scoreRun += chain;
+                break;
+            case eScoreEvent.mineGold: //Remove a gold mine card
+                print("gold mined");
+                chain = chain * 2;
                 scoreRun += chain;
                 break;
         }

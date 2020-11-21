@@ -7,6 +7,7 @@ public class Card : MonoBehaviour
 
 	public string suit;
 	public int rank;
+	public bool gold;
 	public Color color = Color.black;
 	public string colS = "Black";  // or "Red"
 
@@ -88,20 +89,21 @@ public class Card : MonoBehaviour
 }
 
 
-	[System.Serializable]
-	public class Decorator
-	{
-		public string type;         // For card pips, tyhpe = "pip"
-		public Vector3 loc;         // location of sprite on the card
-		public bool flip = false;   //whether to flip vertically
-		public float scale = 1.0f;
-	}
+[System.Serializable]
+public class Decorator
+{
+	public string type;         // For card pips, tyhpe = "pip"
+	public Vector3 loc;         // location of sprite on the card
+	public bool flip = false;   //whether to flip vertically
+	public float scale = 1.0f;
+}
 
-	[System.Serializable]
-	public class CardDefinition
-	{
-		public string face; //sprite to use for face cart
-		public int rank;    // value from 1-13 (Ace-King)
-		public List<Decorator>
-						pips = new List<Decorator>();  // Pips Used
-	}
+[System.Serializable]
+public class CardDefinition
+{
+	public string face; //sprite to use for face cart
+	public int rank;    // value from 1-13 (Ace-King)
+	public bool gold; //gold or not
+	public List<Decorator>
+					pips = new List<Decorator>();  // Pips Used
+}
